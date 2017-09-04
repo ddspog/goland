@@ -19,7 +19,7 @@ var help = "Syntax: translate_notes [level int] [list ...string]\n" +
 // It outputs a mapping of the latin notes to english version.
 func main() {
 	defer contracts.ShowHelp(help)
-	level, list := verifyParameters()
+	level, list := parseArguments()
 
 	var result = program(level, list)
 
@@ -28,7 +28,7 @@ func main() {
 }
 
 // Verify if parameters are valid.
-func verifyParameters() (int, []string) {
+func parseArguments() (int, []string) {
 	contracts.Require(func() bool {
 		return len(os.Args) > 2
 	}, "The program receives a concurrency level and a list of arguments."+np+help)
@@ -79,5 +79,48 @@ func verifyResult(result []string) {
 // The list argument it's a list of latin musical notes and level argument it's the level of concurrency.
 // It returns a mapping of the latin notes to english version.
 func program(level int, list []string) []string {
+
+	var tasks = make(chan int, len(list))
+	var done = make(chan bool, level)
+
+	for i := 0; i < level; i++ {
+		go work(list, tasks, done)
+	}
+
+	for i := 0; i < len(list); i++ {
+		tasks <- i
+	}
+
+	close(tasks)
+
+	for i := 0; i < level; i++ {
+		<-done
+	}
+
 	return list
+}
+
+// A function to process a task of changing a element from the list, using the index received on tasks channel.
+// When it's done, report it to done channel.
+func work(list []string, tasks chan int, done chan bool) {
+	for i := range tasks {
+		switch list[i] {
+		case "Do":
+			list[i] = "C"
+		case "Re":
+			list[i] = "D"
+		case "Mi":
+			list[i] = "E"
+		case "Fa":
+			list[i] = "F"
+		case "Sol":
+			list[i] = "G"
+		case "La":
+			list[i] = "A"
+		case "Si":
+			list[i] = "B"
+		}
+	}
+
+	done <- true
 }
